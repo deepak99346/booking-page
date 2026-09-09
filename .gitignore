@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment & Uploads
+.env
+.env.*
+!.env.example
+uploads/
+server/uploads/
+
