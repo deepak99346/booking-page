@@ -81,15 +81,25 @@ function App() {
       return;
     }
 
-    // Prepare FormData
     const rawFormData = new FormData(event.target);
+    const email = (rawFormData.get("email") || "").toString().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setStatusMessage({
+        type: "error",
+        text: "Please enter a valid email address.",
+      });
+      return;
+    }
+
+    // Prepare FormData
     const apiFormData = new FormData();
 
     apiFormData.append("service", service);
     apiFormData.append("name", rawFormData.get("name") || "");
     apiFormData.append("instituteCompany", rawFormData.get("instituteCompany") || "");
     apiFormData.append("department", rawFormData.get("department") || "");
-    apiFormData.append("email", rawFormData.get("email") || "");
+    apiFormData.append("email", email);
     apiFormData.append("contactNumber", rawFormData.get("contactNumber") || "");
     apiFormData.append("material", rawFormData.get("material") || "");
     apiFormData.append("thickness", rawFormData.get("thickness") || "");
@@ -165,8 +175,8 @@ function App() {
           {statusMessage && (
             <div
               className={`mb-8 flex items-center justify-between rounded-2xl p-4 text-sm font-medium shadow-sm transition-all duration-300 ${statusMessage.type === "success"
-                  ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
-                  : "border border-rose-200 bg-rose-50 text-rose-800"
+                ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border border-rose-200 bg-rose-50 text-rose-800"
                 }`}
             >
               <div className="flex items-center gap-3">
@@ -187,8 +197,125 @@ function App() {
 
           <form onSubmit={handleSubmit}>
 
+            {/* ===================================================== */}
+            {/* ================= CONTACT DETAILS =================== */}
+            {/* ===================================================== */}
+
+            <div className="border-t border-slate-100 pt-8">
+
+              <h2 className="mb-6 text-2xl font-bold text-slate-900">
+                Contact Details
+              </h2>
+
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+
+                {/* ================= NAME ================= */}
+                <div>
+                  <label
+                    htmlFor="name"
+                    className="mb-2 block text-sm font-semibold text-slate-700"
+                  >
+                    Name <span className="text-red-500">*</span>
+                  </label>
+
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    placeholder="Enter your name"
+                    required
+                    disabled={isSubmitting}
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3.5 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 disabled:opacity-60"
+                  />
+                </div>
+
+                {/* ================= INSTITUTE / COMPANY ================= */}
+                <div>
+                  <label
+                    htmlFor="instituteCompany"
+                    className="mb-2 block text-sm font-semibold text-slate-700"
+                  >
+                    Institute / Company{" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+
+                  <input
+                    id="instituteCompany"
+                    name="instituteCompany"
+                    type="text"
+                    placeholder="Enter institute or company name"
+                    required
+                    disabled={isSubmitting}
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3.5 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 disabled:opacity-60"
+                  />
+                </div>
+
+                {/* ================= DEPARTMENT ================= */}
+                <div>
+                  <label
+                    htmlFor="department"
+                    className="mb-2 block text-sm font-semibold text-slate-700"
+                  >
+                    Department <span className="text-red-500">*</span>
+                  </label>
+
+                  <input
+                    id="department"
+                    name="department"
+                    type="text"
+                    placeholder="Enter department"
+                    required
+                    disabled={isSubmitting}
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3.5 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 disabled:opacity-60"
+                  />
+                </div>
+
+                {/* ================= EMAIL ================= */}
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="mb-2 block text-sm font-semibold text-slate-700"
+                  >
+                    Email ID <span className="text-red-500">*</span>
+                  </label>
+
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="Enter your email address"
+                    required
+                    disabled={isSubmitting}
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3.5 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 disabled:opacity-60"
+                  />
+                </div>
+
+                {/* ================= CONTACT NUMBER ================= */}
+                <div className="md:col-span-2">
+                  <label
+                    htmlFor="contactNumber"
+                    className="mb-2 block text-sm font-semibold text-slate-700"
+                  >
+                    Contact Number{" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+
+                  <input
+                    id="contactNumber"
+                    name="contactNumber"
+                    type="tel"
+                    placeholder="Enter your contact number"
+                    required
+                    disabled={isSubmitting}
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3.5 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 disabled:opacity-60"
+                  />
+                </div>
+
+              </div>
+            </div>
+
             {/* ================= SERVICE ================= */}
-            <div className="mb-10">
+            <div className="mt-10">
               <h2 className="mb-6 text-2xl font-bold text-slate-900">
                 Service Details
               </h2>
@@ -418,7 +545,7 @@ function App() {
                       <option value="">Select material</option>
                       <option value="Acrylic">Acrylic</option>
                       <option value="Wood">Wood</option>
-                      <option value="Neutral">Neutral</option>
+                      <option value="Leather">Leather</option>
                     </select>
                   </div>
 
@@ -501,122 +628,7 @@ function App() {
               </div>
             )}
 
-            {/* ===================================================== */}
-            {/* ================= CONTACT DETAILS =================== */}
-            {/* ===================================================== */}
 
-            <div className="border-t border-slate-100 pt-8">
-
-              <h2 className="mb-6 text-2xl font-bold text-slate-900">
-                Contact Details
-              </h2>
-
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-
-                {/* ================= NAME ================= */}
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="mb-2 block text-sm font-semibold text-slate-700"
-                  >
-                    Name <span className="text-red-500">*</span>
-                  </label>
-
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    placeholder="Enter your name"
-                    required
-                    disabled={isSubmitting}
-                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3.5 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 disabled:opacity-60"
-                  />
-                </div>
-
-                {/* ================= INSTITUTE / COMPANY ================= */}
-                <div>
-                  <label
-                    htmlFor="instituteCompany"
-                    className="mb-2 block text-sm font-semibold text-slate-700"
-                  >
-                    Institute / Company{" "}
-                    <span className="text-red-500">*</span>
-                  </label>
-
-                  <input
-                    id="instituteCompany"
-                    name="instituteCompany"
-                    type="text"
-                    placeholder="Enter institute or company name"
-                    required
-                    disabled={isSubmitting}
-                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3.5 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 disabled:opacity-60"
-                  />
-                </div>
-
-                {/* ================= DEPARTMENT ================= */}
-                <div>
-                  <label
-                    htmlFor="department"
-                    className="mb-2 block text-sm font-semibold text-slate-700"
-                  >
-                    Department <span className="text-red-500">*</span>
-                  </label>
-
-                  <input
-                    id="department"
-                    name="department"
-                    type="text"
-                    placeholder="Enter department"
-                    required
-                    disabled={isSubmitting}
-                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3.5 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 disabled:opacity-60"
-                  />
-                </div>
-
-                {/* ================= EMAIL ================= */}
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="mb-2 block text-sm font-semibold text-slate-700"
-                  >
-                    Email ID <span className="text-red-500">*</span>
-                  </label>
-
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="Enter your email address"
-                    required
-                    disabled={isSubmitting}
-                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3.5 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 disabled:opacity-60"
-                  />
-                </div>
-
-                {/* ================= CONTACT NUMBER ================= */}
-                <div className="md:col-span-2">
-                  <label
-                    htmlFor="contactNumber"
-                    className="mb-2 block text-sm font-semibold text-slate-700"
-                  >
-                    Contact Number{" "}
-                    <span className="text-red-500">*</span>
-                  </label>
-
-                  <input
-                    id="contactNumber"
-                    name="contactNumber"
-                    type="tel"
-                    placeholder="Enter your contact number"
-                    required
-                    disabled={isSubmitting}
-                    className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3.5 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 disabled:opacity-60"
-                  />
-                </div>
-
-              </div>
-            </div>
 
             {/* ===================================================== */}
             {/* ===================== SUBMIT ======================== */}

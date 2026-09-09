@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     // Prevent path traversal by extracting clean basename
-    const safeOriginalName = path.basename(file.originalname).replace(/[^a-zA-Z0-0._-]/g, "_");
+    const safeOriginalName = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, "_");
     const ext = path.extname(safeOriginalName).toLowerCase();
     const nameWithoutExt = path.basename(safeOriginalName, ext);
     

@@ -23,10 +23,12 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment & Uploads
+# Environment & Uploads & Database
 .env
 .env.*
 !.env.example
 uploads/
 server/uploads/
+server/data/
+*.db
 

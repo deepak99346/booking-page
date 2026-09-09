@@ -1,13 +1,14 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+
+dotenv.config();
+
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { testConnection } from "./db.js";
 import bookingsRouter from "./routes/bookings.js";
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,7 +40,6 @@ app.get("/api/health", async (req, res) => {
     success: true,
     message: "Backend server is running",
     database: dbStatus,
-    timestamp: new Date().toISOString(),
   });
 });
 
