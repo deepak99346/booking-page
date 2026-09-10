@@ -3,6 +3,11 @@ import path from "path";
 import fs from "fs";
 import db from "../db.js";
 import { upload } from "../middleware/upload.js";
+import {
+  formatBookingMessage,
+  sendTelegramMessage,
+  sendTelegramDocument,
+} from "../services/telegram.js";
 
 const router = express.Router();
 
@@ -31,7 +36,7 @@ router.post(
       next();
     });
   },
-  (req, res) => {
+  async (req, res) => {
     const uploadedFilePath = req.file?.path;
 
     try {
@@ -194,13 +199,71 @@ router.post(
         designFilePath
       );
 
-      return res.status(201).json({
-        success: true,
-        message: "Booking created successfully",
-        data: {
-          id: info.lastInsertRowid,
-        },
-      });
+      const bookingId = Number(info.lastInsertRowid);
+
+      // Attempt Telegram Notification (Non-blocking DB persistence)
+      let telegramSent = false;
+      try {
+        const createdRow = db.prepare("SELECT created_at FROM service_bookings WHERE id = ?").get(bookingId);
+        const createdAt = createdRow?.created_at || new Date().toISOString().replace("T", " ").substring(0, 19);
+
+        const bookingDetails = {
+          id: bookingId,
+          service,
+          name: name.trim(),
+          instituteCompany: instituteCompany.trim(),
+          department: department.trim(),
+          email: email.trim(),
+          contactNumber: contactNumber.trim(),
+          length: lengthVal,
+          breadth: breadthVal,
+          material: material.trim(),
+          thickness: thicknessVal,
+          designFileName,
+          createdAt,
+        };
+
+        const messageText = formatBookingMessage(bookingDetails);
+        const msgResult = await sendTelegramMessage(messageText);
+
+        if (msgResult.success) {
+          const absoluteFilePath = path.resolve(process.cwd(), req.file.path);
+          const caption = `New ${service} Booking #${bookingId}\nCustomer: ${name.trim()}\nFile: ${designFileName}`;
+          const docResult = await sendTelegramDocument(absoluteFilePath, caption, designFileName);
+
+          if (docResult.success) {
+            telegramSent = true;
+          } else {
+            console.error("Telegram document attachment failed:", docResult.error);
+          }
+        } else {
+          console.error("Telegram text message notification failed:", msgResult.error);
+        }
+      } catch (tgError) {
+        console.error("Error during Telegram notification process:", tgError.message);
+      }
+
+      if (telegramSent) {
+        return res.status(201).json({
+          success: true,
+          bookingId,
+          telegramSent: true,
+          message: "Booking created successfully",
+          data: {
+            id: bookingId,
+          },
+        });
+      } else {
+        return res.status(201).json({
+          success: true,
+          bookingId,
+          telegramSent: false,
+          message: "Booking created successfully, but admin notification could not be sent.",
+          data: {
+            id: bookingId,
+          },
+        });
+      }
     } catch (error) {
       console.error("Database or server error during booking:", error);
       removeFileSilently(uploadedFilePath);
