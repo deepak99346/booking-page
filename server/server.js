@@ -8,6 +8,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { testConnection } from "./db.js";
+import { logEmailConfig } from "./services/email.js";
 import bookingsRouter from "./routes/bookings.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,6 +16,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Log email configuration status on startup
+logEmailConfig();
 
 // Ensure upload directory exists
 const uploadDir = path.join(__dirname, "..", "uploads", "designs");

@@ -3,11 +3,7 @@ import path from "path";
 import fs from "fs";
 import db from "../db.js";
 import { upload } from "../middleware/upload.js";
-import {
-  formatBookingMessage,
-  sendTelegramMessage,
-  sendTelegramDocument,
-} from "../services/telegram.js";
+import { sendBookingEmail } from "../services/email.js";
 
 const router = express.Router();
 
@@ -201,8 +197,22 @@ router.post(
 
       const bookingId = Number(info.lastInsertRowid);
 
-      // Attempt Telegram Notification (Non-blocking DB persistence)
-      let telegramSent = false;
+      const absoluteFilePath = path.resolve(process.cwd(), req.file.path);
+      const attachmentExists = fs.existsSync(absoluteFilePath);
+
+      // Diagnostic Logging
+      console.log("[POST /api/bookings] SQLite insertion succeeded.");
+      console.log("[POST /api/bookings] 1. Booking ID:", bookingId);
+      console.log("[POST /api/bookings] 2. Service:", service);
+      console.log("[POST /api/bookings] 3. Design file path (DB):", designFilePath);
+      console.log("[POST /api/bookings] 4. Attachment path exists on disk:", attachmentExists);
+      console.log("[POST /api/bookings] 5. ADMIN_EMAIL present:", Boolean(process.env.ADMIN_EMAIL && process.env.ADMIN_EMAIL.trim() !== ""));
+      console.log("[POST /api/bookings] 6. EMAIL_FROM present:", Boolean(process.env.EMAIL_FROM && process.env.EMAIL_FROM.trim() !== ""));
+
+      // Attempt Email Notification via Resend (Non-blocking DB persistence)
+      let emailSent = false;
+      let emailResult = null;
+
       try {
         const createdRow = db.prepare("SELECT created_at FROM service_bookings WHERE id = ?").get(bookingId);
         const createdAt = createdRow?.created_at || new Date().toISOString().replace("T", " ").substring(0, 19);
@@ -223,47 +233,45 @@ router.post(
           createdAt,
         };
 
-        const messageText = formatBookingMessage(bookingDetails);
-        const msgResult = await sendTelegramMessage(messageText);
+        console.log("[POST /api/bookings] 7. Log before calling sendBookingEmail()");
+        emailResult = await sendBookingEmail(bookingDetails, absoluteFilePath);
+        console.log("[POST /api/bookings] 8. Log after sendBookingEmail() returns");
+        console.log("[POST /api/bookings] 9. Exact returned result from sendBookingEmail():", emailResult);
 
-        if (msgResult.success) {
-          const absoluteFilePath = path.resolve(process.cwd(), req.file.path);
-          const caption = `New ${service} Booking #${bookingId}\nCustomer: ${name.trim()}\nFile: ${designFileName}`;
-          const docResult = await sendTelegramDocument(absoluteFilePath, caption, designFileName);
+        emailSent = Boolean(emailResult && emailResult.success === true);
+      } catch (emailError) {
+        console.error("[POST /api/bookings] Exception caught while calling sendBookingEmail:", {
+          message: emailError.message,
+          name: emailError.name,
+          error: emailError,
+        });
+        emailSent = false;
+      }
 
-          if (docResult.success) {
-            telegramSent = true;
-          } else {
-            console.error("Telegram document attachment failed:", docResult.error);
+      console.log("[POST /api/bookings] 10. Log emailSent value:", emailSent);
+
+      const responseObj = emailSent
+        ? {
+            success: true,
+            bookingId,
+            emailSent: true,
+            message: "Booking created successfully",
+            data: {
+              id: bookingId,
+            },
           }
-        } else {
-          console.error("Telegram text message notification failed:", msgResult.error);
-        }
-      } catch (tgError) {
-        console.error("Error during Telegram notification process:", tgError.message);
-      }
+        : {
+            success: true,
+            bookingId,
+            emailSent: false,
+            message: "Booking created successfully, but admin notification could not be sent.",
+            data: {
+              id: bookingId,
+            },
+          };
 
-      if (telegramSent) {
-        return res.status(201).json({
-          success: true,
-          bookingId,
-          telegramSent: true,
-          message: "Booking created successfully",
-          data: {
-            id: bookingId,
-          },
-        });
-      } else {
-        return res.status(201).json({
-          success: true,
-          bookingId,
-          telegramSent: false,
-          message: "Booking created successfully, but admin notification could not be sent.",
-          data: {
-            id: bookingId,
-          },
-        });
-      }
+      console.log("[POST /api/bookings] 11. Final HTTP response object before sending:", responseObj);
+      return res.status(201).json(responseObj);
     } catch (error) {
       console.error("Database or server error during booking:", error);
       removeFileSilently(uploadedFilePath);
