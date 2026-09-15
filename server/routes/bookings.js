@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 import db from "../db.js";
 import { upload } from "../middleware/upload.js";
-import { sendBookingEmail } from "../services/email.js";
+import { appendBookingToSheet } from "../services/googleSheets.js";
 
 const router = express.Router();
 
@@ -197,64 +197,54 @@ router.post(
 
       const bookingId = Number(info.lastInsertRowid);
 
-      const absoluteFilePath = path.resolve(process.cwd(), req.file.path);
-      const attachmentExists = fs.existsSync(absoluteFilePath);
-
       // Diagnostic Logging
       console.log("[POST /api/bookings] SQLite insertion succeeded.");
-      console.log("[POST /api/bookings] 1. Booking ID:", bookingId);
-      console.log("[POST /api/bookings] 2. Service:", service);
-      console.log("[POST /api/bookings] 3. Design file path (DB):", designFilePath);
-      console.log("[POST /api/bookings] 4. Attachment path exists on disk:", attachmentExists);
-      console.log("[POST /api/bookings] 5. ADMIN_EMAIL present:", Boolean(process.env.ADMIN_EMAIL && process.env.ADMIN_EMAIL.trim() !== ""));
-      console.log("[POST /api/bookings] 6. EMAIL_FROM present:", Boolean(process.env.EMAIL_FROM && process.env.EMAIL_FROM.trim() !== ""));
+      console.log("[POST /api/bookings] Booking ID:", bookingId);
+      console.log("[POST /api/bookings] Service:", service);
+      console.log("[POST /api/bookings] Design file path (DB):", designFilePath);
 
-      // Attempt Email Notification via Resend (Non-blocking DB persistence)
-      let emailSent = false;
-      let emailResult = null;
+      // Fetch created booking timestamp from SQLite
+      const createdRow = db.prepare("SELECT created_at FROM service_bookings WHERE id = ?").get(bookingId);
+      const createdAt = createdRow?.created_at || new Date().toISOString().replace("T", " ").substring(0, 19);
 
+      // Generate public URL for design file download
+      const backendPublicUrl = (process.env.BACKEND_PUBLIC_URL || "http://localhost:5000").replace(/\/+$/, "");
+      const designFileUrl = `${backendPublicUrl}/api/bookings/${bookingId}/design`;
+
+      const bookingDetails = {
+        id: bookingId,
+        service,
+        name: name.trim(),
+        instituteCompany: instituteCompany.trim(),
+        department: department.trim(),
+        email: email.trim(),
+        contactNumber: contactNumber.trim(),
+        length: lengthVal,
+        breadth: breadthVal,
+        material: material.trim(),
+        thickness: thicknessVal,
+        designFileName,
+        designFileUrl,
+        createdAt,
+      };
+
+      // Attempt Google Sheets row append (failure does not rollback SQLite booking or design file)
+      let sheetSynced = false;
       try {
-        const createdRow = db.prepare("SELECT created_at FROM service_bookings WHERE id = ?").get(bookingId);
-        const createdAt = createdRow?.created_at || new Date().toISOString().replace("T", " ").substring(0, 19);
-
-        const bookingDetails = {
-          id: bookingId,
-          service,
-          name: name.trim(),
-          instituteCompany: instituteCompany.trim(),
-          department: department.trim(),
-          email: email.trim(),
-          contactNumber: contactNumber.trim(),
-          length: lengthVal,
-          breadth: breadthVal,
-          material: material.trim(),
-          thickness: thicknessVal,
-          designFileName,
-          createdAt,
-        };
-
-        console.log("[POST /api/bookings] 7. Log before calling sendBookingEmail()");
-        emailResult = await sendBookingEmail(bookingDetails, absoluteFilePath);
-        console.log("[POST /api/bookings] 8. Log after sendBookingEmail() returns");
-        console.log("[POST /api/bookings] 9. Exact returned result from sendBookingEmail():", emailResult);
-
-        emailSent = Boolean(emailResult && emailResult.success === true);
-      } catch (emailError) {
-        console.error("[POST /api/bookings] Exception caught while calling sendBookingEmail:", {
-          message: emailError.message,
-          name: emailError.name,
-          error: emailError,
-        });
-        emailSent = false;
+        const sheetResult = await appendBookingToSheet(bookingDetails);
+        sheetSynced = Boolean(sheetResult && sheetResult.success === true);
+      } catch (sheetErr) {
+        console.error("[POST /api/bookings] Exception during Google Sheets append:", sheetErr.message || sheetErr);
+        sheetSynced = false;
       }
 
-      console.log("[POST /api/bookings] 10. Log emailSent value:", emailSent);
+      console.log("[POST /api/bookings] Google Sheets sheetSynced:", sheetSynced);
 
-      const responseObj = emailSent
+      const responseObj = sheetSynced
         ? {
             success: true,
             bookingId,
-            emailSent: true,
+            sheetSynced: true,
             message: "Booking created successfully",
             data: {
               id: bookingId,
@@ -263,14 +253,13 @@ router.post(
         : {
             success: true,
             bookingId,
-            emailSent: false,
-            message: "Booking created successfully, but admin notification could not be sent.",
+            sheetSynced: false,
+            message: "Booking created successfully, but Google Sheets synchronization failed.",
             data: {
               id: bookingId,
             },
           };
 
-      console.log("[POST /api/bookings] 11. Final HTTP response object before sending:", responseObj);
       return res.status(201).json(responseObj);
     } catch (error) {
       console.error("Database or server error during booking:", error);

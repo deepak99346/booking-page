@@ -8,7 +8,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { testConnection } from "./db.js";
-import { logEmailConfig } from "./services/email.js";
+import { logGoogleSheetsConfig } from "./services/googleSheets.js";
 import bookingsRouter from "./routes/bookings.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,8 +17,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Log email configuration status on startup
-logEmailConfig();
+// Log Google Sheets configuration status on startup
+logGoogleSheetsConfig();
 
 // Ensure upload directory exists
 const uploadDir = path.join(__dirname, "..", "uploads", "designs");
