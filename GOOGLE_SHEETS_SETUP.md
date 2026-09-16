@@ -52,7 +52,7 @@ This guide explains how to configure Google Sheets integration for the service b
 1. Go to [Google Sheets](https://sheets.google.com/) and create a **Blank spreadsheet**.
 2. Name the spreadsheet (e.g., `Service Bookings`).
 3. Set the active tab name to `Bookings` (or note your tab name).
-4. Add the following **exact header row** in Row 1 (Columns A through N):
+4. Add the following **exact header row** in Row 1 (Columns A through M):
 
 | Col | Column Name |
 | --- | --- |
@@ -63,13 +63,12 @@ This guide explains how to configure Google Sheets integration for the service b
 | **E** | `Department` |
 | **F** | `Email` |
 | **G** | `Contact Number` |
-| **H** | `Length (mm)` |
-| **I** | `Breadth (mm)` |
-| **J** | `Thickness (mm)` |
-| **K** | `Material` |
-| **L** | `Design File Name` |
-| **M** | `Design File URL` |
-| **N** | `Created At` |
+| **H** | `Details` |
+| **I** | `Design File Name` |
+| **J** | `Design File URL` |
+| **K** | `Assign To` |
+| **L** | `Completion Date` |
+| **M** | `Created At` |
 
 ---
 
