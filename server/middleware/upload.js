@@ -32,11 +32,12 @@ const storage = multer.diskStorage({
 
 const fileFilter = (req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
+  const allowedExtensions = [".gbr", ".dxf", ".zip", ".drl", ".pdf", ".stl"];
   
-  if (ext === ".gbr" || ext === ".dxf") {
+  if (allowedExtensions.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error("INVALID_FILE_TYPE: Only .gbr and .dxf files are allowed."));
+    cb(new Error(`INVALID_FILE_TYPE: Only ${allowedExtensions.join(", ")} files are allowed.`));
   }
 };
 

@@ -46,6 +46,32 @@ CREATE TABLE IF NOT EXISTS service_bookings (
 
 db.exec(createTableQuery);
 
+// Migrate database columns if they do not exist
+const existingColumns = db.pragma("table_info(service_bookings)").map((col) => col.name);
+
+const newColumns = [
+  { name: "layer", type: "TEXT" },
+  { name: "filament", type: "TEXT" },
+  { name: "website_type", type: "TEXT" },
+  { name: "website_pages_count", type: "INTEGER" },
+  { name: "website_required_pages", type: "TEXT" },
+  { name: "website_responsive", type: "TEXT" },
+  { name: "website_reference_url", type: "TEXT" },
+  { name: "website_required_features", type: "TEXT" },
+  { name: "website_content_status", type: "TEXT" },
+  { name: "website_design_reference", type: "TEXT" },
+  { name: "website_preferred_technology", type: "TEXT" },
+  { name: "website_expected_timeline", type: "TEXT" },
+  { name: "website_additional_requirements", type: "TEXT" },
+];
+
+for (const col of newColumns) {
+  if (!existingColumns.includes(col.name)) {
+    db.exec(`ALTER TABLE service_bookings ADD COLUMN ${col.name} ${col.type};`);
+    console.log(`[DB Migration] Added column '${col.name}' (${col.type}) to service_bookings table.`);
+  }
+}
+
 export function testConnection() {
   try {
     const result = db.prepare("SELECT 1 AS alive").get();

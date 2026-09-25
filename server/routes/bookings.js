@@ -36,7 +36,7 @@ router.post(
     const uploadedFilePath = req.file?.path;
 
     try {
-      const {
+      let {
         service,
         name,
         instituteCompany,
@@ -47,41 +47,59 @@ router.post(
         breadth,
         material,
         thickness,
+        layer,
+        filament,
+        websiteType,
+        websitePagesCount,
+        websiteRequiredPages,
+        websiteResponsive,
+        websiteReferenceUrl,
+        websiteRequiredFeatures,
+        websiteContentStatus,
+        websiteDesignReference,
+        websitePreferredTechnology,
+        websiteExpectedTimeline,
+        websiteAdditionalRequirements,
       } = req.body;
 
-      // Check file existence
-      if (!req.file) {
+      // Rename legacy "PCB" to "PCB Fabrication" if received
+      if (service === "PCB") {
+        service = "PCB Fabrication";
+      }
+
+      const validFacilities = [
+        "PCB Fabrication",
+        "Laser Cutter",
+        "PCB Design",
+        "3D Design",
+        "Website Design",
+      ];
+
+      if (!service || !validFacilities.includes(service)) {
+        removeFileSilently(uploadedFilePath);
         return res.status(400).json({
           success: false,
-          message: "Design file is required.",
+          message: `Invalid facility selected. Allowed: ${validFacilities.join(", ")}`,
         });
       }
 
       // Common required fields validation
       if (
-        !service ||
         !name ||
+        !name.trim() ||
         !instituteCompany ||
+        !instituteCompany.trim() ||
         !department ||
+        !department.trim() ||
         !email ||
+        !email.trim() ||
         !contactNumber ||
-        !material ||
-        thickness === undefined ||
-        thickness === ""
+        !contactNumber.trim()
       ) {
         removeFileSilently(uploadedFilePath);
         return res.status(400).json({
           success: false,
-          message: "All required fields must be provided.",
-        });
-      }
-
-      // Service validation
-      if (service !== "PCB" && service !== "Laser Cutter") {
-        removeFileSilently(uploadedFilePath);
-        return res.status(400).json({
-          success: false,
-          message: "Invalid service selected. Allowed: PCB, Laser Cutter.",
+          message: "All common contact fields (Name, Institute/Company, Department, Email, Contact Number) are required.",
         });
       }
 
@@ -95,32 +113,66 @@ router.post(
         });
       }
 
-      // Thickness validation
-      const thicknessVal = parseFloat(thickness);
-      if (isNaN(thicknessVal) || thicknessVal <= 0) {
-        removeFileSilently(uploadedFilePath);
-        return res.status(400).json({
-          success: false,
-          message: "Thickness must be a positive number (in mm).",
-        });
-      }
-
-      // Service-specific validation & normalization
       let lengthVal = null;
       let breadthVal = null;
-      const fileExt = path.extname(req.file.originalname).toLowerCase();
+      let thicknessVal = null;
+      let materialVal = null;
+      let layerVal = null;
+      let filamentVal = null;
+      let webTypeVal = null;
+      let webPagesCountVal = null;
+      let webReqPagesVal = null;
+      let webResponsiveVal = null;
+      let webRefUrlVal = null;
+      let webReqFeaturesVal = null;
+      let webContentStatusVal = null;
+      let webDesignRefVal = null;
+      let webPrefTechVal = null;
+      let webExpTimelineVal = null;
+      let webAddReqVal = null;
 
-      if (service === "PCB") {
-        if (length === undefined || length === "" || breadth === undefined || breadth === "") {
+      const fileExt = req.file ? path.extname(req.file.originalname).toLowerCase() : "";
+
+      // Service-specific validation & normalization
+      if (service === "PCB Fabrication") {
+        if (!req.file) {
+          return res.status(400).json({
+            success: false,
+            message: "Design file is required for PCB Fabrication.",
+          });
+        }
+
+        const allowedPcbExts = [".gbr", ".dxf", ".zip", ".drl"];
+        if (!allowedPcbExts.includes(fileExt)) {
           removeFileSilently(uploadedFilePath);
           return res.status(400).json({
             success: false,
-            message: "Length and breadth are required for PCB service.",
+            message: "Invalid design file for PCB Fabrication. Allowed extensions: .gbr, .dxf, .zip, .drl",
+          });
+        }
+
+        if (
+          length === undefined ||
+          length === "" ||
+          breadth === undefined ||
+          breadth === "" ||
+          thickness === undefined ||
+          thickness === "" ||
+          !material ||
+          !material.trim() ||
+          !layer ||
+          !layer.trim()
+        ) {
+          removeFileSilently(uploadedFilePath);
+          return res.status(400).json({
+            success: false,
+            message: "Length, breadth, thickness, material, and layer are required for PCB Fabrication.",
           });
         }
 
         lengthVal = parseFloat(length);
         breadthVal = parseFloat(breadth);
+        thicknessVal = parseFloat(thickness);
 
         if (isNaN(lengthVal) || lengthVal <= 0) {
           removeFileSilently(uploadedFilePath);
@@ -138,15 +190,33 @@ router.post(
           });
         }
 
-        if (fileExt !== ".gbr" && fileExt !== ".dxf") {
+        if (isNaN(thicknessVal) || thicknessVal <= 0) {
           removeFileSilently(uploadedFilePath);
           return res.status(400).json({
             success: false,
-            message: "Invalid design file for PCB. Allowed extensions: .gbr, .dxf",
+            message: "Thickness must be a positive number (in mm).",
           });
         }
+
+        if (layer !== "Single" && layer !== "Double") {
+          removeFileSilently(uploadedFilePath);
+          return res.status(400).json({
+            success: false,
+            message: "Layer must be 'Single' or 'Double'.",
+          });
+        }
+
+        materialVal = material.trim();
+        layerVal = layer.trim();
+
       } else if (service === "Laser Cutter") {
-        // Laser cutter only allows .dxf
+        if (!req.file) {
+          return res.status(400).json({
+            success: false,
+            message: "Design file is required for Laser Cutter.",
+          });
+        }
+
         if (fileExt !== ".dxf") {
           removeFileSilently(uploadedFilePath);
           return res.status(400).json({
@@ -154,13 +224,96 @@ router.post(
             message: "Invalid design file for Laser Cutter. Only .dxf files are allowed.",
           });
         }
-        lengthVal = null;
-        breadthVal = null;
+
+        if (!material || !material.trim() || thickness === undefined || thickness === "") {
+          removeFileSilently(uploadedFilePath);
+          return res.status(400).json({
+            success: false,
+            message: "Material and thickness are required for Laser Cutter.",
+          });
+        }
+
+        thicknessVal = parseFloat(thickness);
+        if (isNaN(thicknessVal) || thicknessVal <= 0) {
+          removeFileSilently(uploadedFilePath);
+          return res.status(400).json({
+            success: false,
+            message: "Thickness must be a positive number (in mm).",
+          });
+        }
+
+        materialVal = material.trim();
+
+      } else if (service === "PCB Design") {
+        if (!req.file) {
+          return res.status(400).json({
+            success: false,
+            message: "Design file is required for PCB Design.",
+          });
+        }
+
+        const allowedPcbDesignExts = [".pdf", ".zip"];
+        if (!allowedPcbDesignExts.includes(fileExt)) {
+          removeFileSilently(uploadedFilePath);
+          return res.status(400).json({
+            success: false,
+            message: "Invalid design file for PCB Design. Allowed extensions: .pdf, .zip",
+          });
+        }
+
+      } else if (service === "3D Design") {
+        if (!req.file) {
+          return res.status(400).json({
+            success: false,
+            message: "Design file is required for 3D Design.",
+          });
+        }
+
+        if (fileExt !== ".stl") {
+          removeFileSilently(uploadedFilePath);
+          return res.status(400).json({
+            success: false,
+            message: "Invalid design file for 3D Design. Only .stl files are allowed.",
+          });
+        }
+
+        if (!filament || (filament !== "PLA" && filament !== "ABS")) {
+          removeFileSilently(uploadedFilePath);
+          return res.status(400).json({
+            success: false,
+            message: "Filament is required for 3D Design and must be 'PLA' or 'ABS'.",
+          });
+        }
+
+        filamentVal = filament;
+
+      } else if (service === "Website Design") {
+        if (!websiteType || !websiteType.trim()) {
+          removeFileSilently(uploadedFilePath);
+          return res.status(400).json({
+            success: false,
+            message: "Website Type is required for Website Design.",
+          });
+        }
+
+        webTypeVal = websiteType.trim();
+        webPagesCountVal = websitePagesCount ? parseInt(websitePagesCount, 10) : null;
+        webReqPagesVal = Array.isArray(websiteRequiredPages)
+          ? websiteRequiredPages.join(", ")
+          : (websiteRequiredPages ? String(websiteRequiredPages).trim() : "");
+        webResponsiveVal = websiteResponsive || "Yes";
+        webRefUrlVal = websiteReferenceUrl ? websiteReferenceUrl.trim() : "";
+        webReqFeaturesVal = websiteRequiredFeatures ? websiteRequiredFeatures.trim() : "";
+        webContentStatusVal = websiteContentStatus ? websiteContentStatus.trim() : "";
+        webDesignRefVal = websiteDesignReference ? websiteDesignReference.trim() : "";
+        webPrefTechVal = websitePreferredTechnology ? websitePreferredTechnology.trim() : "";
+        webExpTimelineVal = websiteExpectedTimeline ? websiteExpectedTimeline.trim() : "";
+        webAddReqVal = websiteAdditionalRequirements ? websiteAdditionalRequirements.trim() : "";
       }
 
       // Filename and relative file path for database storage
-      const designFileName = req.file.originalname;
-      const designFilePath = path.relative(process.cwd(), req.file.path).replace(/\\/g, "/");
+      const designFileName = req.file ? req.file.originalname : "";
+      const designFilePath = req.file ? path.relative(process.cwd(), req.file.path).replace(/\\/g, "/") : "";
 
       // Prepared statement insert into SQLite
       const stmt = db.prepare(`
@@ -175,9 +328,22 @@ router.post(
           breadth_mm,
           material,
           thickness_mm,
+          layer,
+          filament,
+          website_type,
+          website_pages_count,
+          website_required_pages,
+          website_responsive,
+          website_reference_url,
+          website_required_features,
+          website_content_status,
+          website_design_reference,
+          website_preferred_technology,
+          website_expected_timeline,
+          website_additional_requirements,
           design_file_name,
           design_file_path
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       const info = stmt.run(
@@ -189,27 +355,36 @@ router.post(
         contactNumber.trim(),
         lengthVal,
         breadthVal,
-        material.trim(),
+        materialVal,
         thicknessVal,
+        layerVal,
+        filamentVal,
+        webTypeVal,
+        webPagesCountVal,
+        webReqPagesVal,
+        webResponsiveVal,
+        webRefUrlVal,
+        webReqFeaturesVal,
+        webContentStatusVal,
+        webDesignRefVal,
+        webPrefTechVal,
+        webExpTimelineVal,
+        webAddReqVal,
         designFileName,
         designFilePath
       );
 
       const bookingId = Number(info.lastInsertRowid);
 
-      // Diagnostic Logging
       console.log("[POST /api/bookings] SQLite insertion succeeded.");
       console.log("[POST /api/bookings] Booking ID:", bookingId);
       console.log("[POST /api/bookings] Service:", service);
-      console.log("[POST /api/bookings] Design file path (DB):", designFilePath);
 
-      // Fetch created booking timestamp from SQLite
       const createdRow = db.prepare("SELECT created_at FROM service_bookings WHERE id = ?").get(bookingId);
       const createdAt = createdRow?.created_at || new Date().toISOString().replace("T", " ").substring(0, 19);
 
-      // Generate public URL for design file download
       const backendPublicUrl = (process.env.BACKEND_PUBLIC_URL || "http://localhost:5000").replace(/\/+$/, "");
-      const designFileUrl = `${backendPublicUrl}/api/bookings/${bookingId}/design`;
+      const designFileUrl = designFileName ? `${backendPublicUrl}/api/bookings/${bookingId}/design` : "";
 
       const bookingDetails = {
         id: bookingId,
@@ -221,14 +396,26 @@ router.post(
         contactNumber: contactNumber.trim(),
         length: lengthVal,
         breadth: breadthVal,
-        material: material.trim(),
+        material: materialVal,
         thickness: thicknessVal,
+        layer: layerVal,
+        filament: filamentVal,
+        websiteType: webTypeVal,
+        websitePagesCount: webPagesCountVal,
+        websiteRequiredPages: webReqPagesVal,
+        websiteResponsive: webResponsiveVal,
+        websiteReferenceUrl: webRefUrlVal,
+        websiteRequiredFeatures: webReqFeaturesVal,
+        websiteContentStatus: webContentStatusVal,
+        websiteDesignReference: webDesignRefVal,
+        websitePreferredTechnology: webPrefTechVal,
+        websiteExpectedTimeline: webExpTimelineVal,
+        websiteAdditionalRequirements: webAddReqVal,
         designFileName,
         designFileUrl,
         createdAt,
       };
 
-      // Attempt Google Sheets row append (failure does not rollback SQLite booking or design file)
       let sheetSynced = false;
       try {
         const sheetResult = await appendBookingToSheet(bookingDetails);
@@ -328,6 +515,13 @@ router.get("/:id/design", (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Booking not found",
+      });
+    }
+
+    if (!booking.design_file_path || booking.design_file_path.trim() === "") {
+      return res.status(404).json({
+        success: false,
+        message: "Design file not found for this booking",
       });
     }
 

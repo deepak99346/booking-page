@@ -71,31 +71,78 @@ export async function appendBookingToSheet(booking) {
     const email = booking.email || "";
     const contactNumber = booking.contactNumber || booking.contact_number || "";
 
-    const lengthVal = (booking.length !== null && booking.length !== undefined && booking.length !== "")
-      ? booking.length
-      : ((booking.length_mm !== null && booking.length_mm !== undefined && booking.length_mm !== "") ? booking.length_mm : "N/A");
-
-    const breadthVal = (booking.breadth !== null && booking.breadth !== undefined && booking.breadth !== "")
-      ? booking.breadth
-      : ((booking.breadth_mm !== null && booking.breadth_mm !== undefined && booking.breadth_mm !== "") ? booking.breadth_mm : "N/A");
-
-    const thicknessVal = (booking.thickness !== null && booking.thickness !== undefined && booking.thickness !== "")
-      ? booking.thickness
-      : ((booking.thickness_mm !== null && booking.thickness_mm !== undefined && booking.thickness_mm !== "") ? booking.thickness_mm : "N/A");
-
+    const lengthVal = booking.length ?? booking.length_mm;
+    const breadthVal = booking.breadth ?? booking.breadth_mm;
+    const thicknessVal = booking.thickness ?? booking.thickness_mm;
     const materialVal = booking.material || "";
+    const layerVal = booking.layer || "";
+    const filamentVal = booking.filament || "";
 
-    const details = [
-      `Length: ${lengthVal} mm`,
-      `Breadth: ${breadthVal} mm`,
-      `Thickness: ${thicknessVal} mm`,
-      `Material: ${materialVal}`,
-    ].join("\n");
+    let details = "";
+
+    if (service === "PCB Fabrication" || service === "PCB") {
+      details = [
+        `Facility: PCB Fabrication`,
+        `Length: ${lengthVal} mm`,
+        `Breadth: ${breadthVal} mm`,
+        `Thickness: ${thicknessVal} mm`,
+        `Material: ${materialVal}`,
+        `Layer: ${layerVal}`,
+      ].join("\n");
+    } else if (service === "Laser Cutter") {
+      details = [
+        `Facility: Laser Cutter`,
+        `Material: ${materialVal}`,
+        `Thickness: ${thicknessVal} mm`,
+      ].join("\n");
+    } else if (service === "PCB Design") {
+      const designName = booking.designFileName || booking.design_file_name || "";
+      const rawExt = designName ? designName.slice(designName.lastIndexOf(".")).replace(".", "").toUpperCase() : "PDF";
+      details = [
+        `Facility: PCB Design`,
+        `Design Type: PCB Design`,
+        `File Type: ${rawExt}`,
+      ].join("\n");
+    } else if (service === "3D Design") {
+      details = [
+        `Facility: 3D Design`,
+        `Filament: ${filamentVal}`,
+      ].join("\n");
+    } else if (service === "Website Design") {
+      const webType = booking.websiteType || booking.website_type || "";
+      const webPagesCount = booking.websitePagesCount ?? booking.website_pages_count;
+      const webReqPages = booking.websiteRequiredPages || booking.website_required_pages || "";
+      const webResponsive = booking.websiteResponsive || booking.website_responsive || "Yes";
+      const webRefUrl = booking.websiteReferenceUrl || booking.website_reference_url || "";
+      const webReqFeatures = booking.websiteRequiredFeatures || booking.website_required_features || "";
+      const webContentStatus = booking.websiteContentStatus || booking.website_content_status || "";
+      const webDesignRef = booking.websiteDesignReference || booking.website_design_reference || "";
+      const webPrefTech = booking.websitePreferredTechnology || booking.website_preferred_technology || "";
+      const webExpTimeline = booking.websiteExpectedTimeline || booking.website_expected_timeline || "";
+      const webAddReq = booking.websiteAdditionalRequirements || booking.website_additional_requirements || "";
+
+      const parts = [`Facility: Website Design`];
+      if (webType) parts.push(`Website Type: ${webType}`);
+      if (webPagesCount !== null && webPagesCount !== undefined && webPagesCount !== "") parts.push(`Number of Pages: ${webPagesCount}`);
+      if (webReqPages) parts.push(`Required Pages: ${webReqPages}`);
+      if (webResponsive) parts.push(`Responsive: ${webResponsive}`);
+      if (webRefUrl) parts.push(`Reference URL: ${webRefUrl}`);
+      if (webReqFeatures) parts.push(`Required Features: ${webReqFeatures}`);
+      if (webContentStatus) parts.push(`Content Status: ${webContentStatus}`);
+      if (webDesignRef) parts.push(`Design Reference: ${webDesignRef}`);
+      if (webPrefTech) parts.push(`Preferred Technology: ${webPrefTech}`);
+      if (webExpTimeline) parts.push(`Expected Timeline: ${webExpTimeline}`);
+      if (webAddReq) parts.push(`Additional Requirements: ${webAddReq}`);
+
+      details = parts.join("\n");
+    } else {
+      details = `Facility: ${service}`;
+    }
 
     const designFileName = booking.designFileName || booking.design_file_name || "";
 
     const backendPublicUrl = (process.env.BACKEND_PUBLIC_URL || "http://localhost:5000").replace(/\/+$/, "");
-    const designFileUrl = booking.designFileUrl || `${backendPublicUrl}/api/bookings/${bookingId}/design`;
+    const designFileUrl = designFileName ? (booking.designFileUrl || `${backendPublicUrl}/api/bookings/${bookingId}/design`) : "";
 
     const createdAt = booking.createdAt || booking.created_at || new Date().toISOString();
 
